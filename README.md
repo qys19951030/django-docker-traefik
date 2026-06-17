@@ -121,32 +121,54 @@ docker compose -f docker-compose.prod.yml up -d --build
 docker compose --env-file .env.prod -f docker-compose.prod.yml up -d --build
 ```
 
-#### 4. 用 `python manage.py check --deploy` 验证
+#### 4. 验证生产配置链路（3 条 fail-fast + 1 条通过）
 
-进入 `web` 容器执行：
+你可以按下面 4 步依次验证，确保安全链路上每一环都按预期工作：
+
+##### 4.1 `docker compose config` 能正常解析（提供密钥时）
 
 ```sh
-python manage.py check --deploy
+SECRET_KEY=$(python -c "import secrets; print(secrets.token_urlsafe(64))") \
+  docker compose -f docker-compose.prod.yml config
 ```
 
-预期输出：
+预期：Compose 成功渲染完整配置，`services.web.environment.SECRET_KEY` 为你刚才生成的随机串，`DEBUG` 为 `"0"`。
 
+##### 4.2 不提供 `SECRET_KEY` 时 Compose 立刻 fail-fast
+
+```sh
+unset SECRET_KEY
+docker compose -f docker-compose.prod.yml config
 ```
-System check identified no issues (0 silenced).
-```
 
-#### 5. 验证默认示例值已经不可上线
+预期：Compose 立刻报错并退出非零，错误信息包含 `required variable SECRET_KEY is missing a value`，**不会**偷偷带默认值继续渲染，更不会启动容器。
 
-本地不注入任何 `SECRET_KEY`，尝试读取 settings：
+##### 4.3 提供仓库示例值时 Django 启动阶段拒绝
+
+即使绕过了 Compose 的变量校验（比如有人强行在 compose 文件里写死），Django 自身也会在 settings 加载阶段拒绝仓库中出现过的任何示例值：
 
 ```sh
 cd app
-DEBUG=0 python -c "from config import settings"
+DEBUG=0 SECRET_KEY='aB3dE7fG9hJ2kL5mN8pQ1rS4tU6vW0xY2zA5bC8dE1fG4hI7jK0lM3nO6pQr' \
+  python manage.py check --deploy
 ```
 
-预期应直接抛出 `django.core.exceptions.ImproperlyConfigured: SECRET_KEY is not safe for production.`，不会带着仓库里的默认值继续跑。
+预期：启动阶段直接抛出 `django.core.exceptions.ImproperlyConfigured: SECRET_KEY is not safe for production.`，exit code = 1，根本走不到 deploy check。
 
-#### 6. 手动验证 HTTPS 代理识别
+##### 4.4 提供用户自定义有效密钥时 `check --deploy` 通过
+
+```sh
+cd app
+DEBUG=0 \
+  SECRET_KEY=$(python -c "import secrets; print(secrets.token_urlsafe(64))") \
+  DJANGO_ALLOWED_HOSTS=example.com \
+  DJANGO_CSRF_TRUSTED_ORIGINS=https://example.com \
+  python manage.py check --deploy
+```
+
+预期：`System check identified no issues (0 silenced).`，exit code = 0。
+
+#### 5. 手动验证 HTTPS 代理识别
 
 进入 Django shell 模拟一个带代理头的请求：
 
