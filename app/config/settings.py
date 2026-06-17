@@ -13,6 +13,7 @@ https://docs.djangoproject.com/en/4.1/ref/settings/
 from pathlib import Path
 
 import environ
+from django.core.exceptions import ImproperlyConfigured
 
 env = environ.Env()
 
@@ -28,6 +29,15 @@ def _parse_bool(value, default=False):
     if s in ('0', 'false', 'f', 'no', 'n', 'off', ''):
         return False
     raise ValueError(f"Cannot parse {value!r} as a boolean")
+
+
+def _parse_int(value, default=0):
+    if value is None:
+        return default
+    try:
+        return int(str(value).strip())
+    except (ValueError, TypeError):
+        return default
 
 
 def _parse_list(value, default=None):
@@ -53,6 +63,16 @@ def _parse_list(value, default=None):
     return result if result else list(default)
 
 
+_INSECURE_SECRET_KEY_PREFIXES = (
+    'django-insecure-',
+    'change-me-to-a-long-random-string',
+    'your-secret-key-here',
+    'replace-me',
+    'example-secret-key',
+    'insecure',
+)
+
+
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 SECRET_KEY = env('SECRET_KEY', default="django-insecure-*y(bpj*0ho*d6w9_cz0fvf428$&&jyzw==ztb$0(fkbvq)o-r5")
@@ -62,6 +82,30 @@ DEBUG = _parse_bool(env('DEBUG', default='0'))
 ALLOWED_HOSTS = _parse_list(env('DJANGO_ALLOWED_HOSTS', default=''))
 
 CSRF_TRUSTED_ORIGINS = _parse_list(env('DJANGO_CSRF_TRUSTED_ORIGINS', default=''))
+
+
+if not DEBUG:
+    key_lower = SECRET_KEY.lower()
+    is_insecure = False
+    if len(SECRET_KEY) < 50:
+        is_insecure = True
+    if key_lower.startswith('django-insecure-'):
+        is_insecure = True
+    for placeholder in _INSECURE_SECRET_KEY_PREFIXES:
+        if placeholder in key_lower:
+            is_insecure = True
+            break
+    unique_chars = len(set(SECRET_KEY))
+    if unique_chars < 5:
+        is_insecure = True
+    if is_insecure:
+        raise ImproperlyConfigured(
+            "SECRET_KEY is not safe for production. "
+            "It must be at least 50 characters long, contain at least 5 unique characters, "
+            "and must not start with 'django-insecure-' or use a known placeholder "
+            "(e.g. 'change-me-to-a-long-random-string'). "
+            "Generate one with: python -c \"import secrets; print(secrets.token_urlsafe(64))\""
+        )
 
 
 INSTALLED_APPS = [
@@ -147,15 +191,27 @@ USE_X_FORWARDED_HOST = True
 USE_X_FORWARDED_PORT = True
 
 if not DEBUG:
+    SECURE_SSL_REDIRECT = _parse_bool(
+        env('DJANGO_SECURE_SSL_REDIRECT', default='1')
+    )
+    SECURE_HSTS_SECONDS = _parse_int(
+        env('DJANGO_SECURE_HSTS_SECONDS', default='31536000')
+    )
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = _parse_bool(
+        env('DJANGO_SECURE_HSTS_INCLUDE_SUBDOMAINS', default='1')
+    )
+    SECURE_HSTS_PRELOAD = _parse_bool(
+        env('DJANGO_SECURE_HSTS_PRELOAD', default='1')
+    )
     SESSION_COOKIE_SECURE = True
     CSRF_COOKIE_SECURE = True
-    SECURE_SSL_REDIRECT = False
-    SECURE_HSTS_SECONDS = 0
-    SECURE_HSTS_INCLUDE_SUBDOMAINS = False
-    SECURE_HSTS_PRELOAD = False
     SECURE_CONTENT_TYPE_NOSNIFF = True
     SECURE_BROWSER_XSS_FILTER = True
     X_FRAME_OPTIONS = 'DENY'
 else:
+    SECURE_SSL_REDIRECT = False
+    SECURE_HSTS_SECONDS = 0
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = False
+    SECURE_HSTS_PRELOAD = False
     SESSION_COOKIE_SECURE = False
     CSRF_COOKIE_SECURE = False
