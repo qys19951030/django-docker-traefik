@@ -16,23 +16,53 @@ import environ
 
 env = environ.Env()
 
-# Build paths inside the project like this: BASE_DIR / 'subdir'.
+
+def _parse_bool(value, default=False):
+    if isinstance(value, bool):
+        return value
+    if value is None:
+        return default
+    s = str(value).strip().lower()
+    if s in ('1', 'true', 't', 'yes', 'y', 'on'):
+        return True
+    if s in ('0', 'false', 'f', 'no', 'n', 'off', ''):
+        return False
+    raise ValueError(f"Cannot parse {value!r} as a boolean")
+
+
+def _parse_list(value, default=None):
+    if default is None:
+        default = []
+    if value is None:
+        return list(default)
+    if isinstance(value, (list, tuple)):
+        result = []
+        for item in value:
+            s = str(item).strip()
+            if s:
+                result.append(s)
+        return result if result else list(default)
+    s = str(value).strip()
+    if not s:
+        return list(default)
+    result = []
+    for item in s.split(','):
+        item = item.strip()
+        if item:
+            result.append(item)
+    return result if result else list(default)
+
+
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+SECRET_KEY = env('SECRET_KEY', default="django-insecure-*y(bpj*0ho*d6w9_cz0fvf428$&&jyzw==ztb$0(fkbvq)o-r5")
 
-# Quick-start development settings - unsuitable for production
-# See https://docs.djangoproject.com/en/4.1/howto/deployment/checklist/
+DEBUG = _parse_bool(env('DEBUG', default='0'))
 
-# SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = "django-insecure-*y(bpj*0ho*d6w9_cz0fvf428$&&jyzw==ztb$0(fkbvq)o-r5"
+ALLOWED_HOSTS = _parse_list(env('DJANGO_ALLOWED_HOSTS', default=''))
 
-# SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = env('DEBUG')
+CSRF_TRUSTED_ORIGINS = _parse_list(env('DJANGO_CSRF_TRUSTED_ORIGINS', default=''))
 
-ALLOWED_HOSTS = env('DJANGO_ALLOWED_HOSTS', default=[])
-
-
-# Application definition
 
 INSTALLED_APPS = [
     "django.contrib.admin",
@@ -75,16 +105,10 @@ TEMPLATES = [
 WSGI_APPLICATION = "config.wsgi.application"
 
 
-# Database
-# https://docs.djangoproject.com/en/4.1/ref/settings/#databases
-
 DATABASES = {
-    'default': env.db(),
+    'default': env.db(default='sqlite:///db.sqlite3'),
 }
 
-
-# Password validation
-# https://docs.djangoproject.com/en/4.1/ref/settings/#auth-password-validators
 
 AUTH_PASSWORD_VALIDATORS = [
     {
@@ -102,9 +126,6 @@ AUTH_PASSWORD_VALIDATORS = [
 ]
 
 
-# Internationalization
-# https://docs.djangoproject.com/en/4.1/topics/i18n/
-
 LANGUAGE_CODE = "en-us"
 
 TIME_ZONE = "UTC"
@@ -114,14 +135,27 @@ USE_I18N = True
 USE_TZ = True
 
 
-# Static files (CSS, JavaScript, Images)
-# https://docs.djangoproject.com/en/4.1/howto/static-files/
-
 STATIC_URL = "static/"
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
-# Default primary key field type
-# https://docs.djangoproject.com/en/4.1/ref/settings/#default-auto-field
-
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
+
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+USE_X_FORWARDED_HOST = True
+USE_X_FORWARDED_PORT = True
+
+if not DEBUG:
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+    SECURE_SSL_REDIRECT = False
+    SECURE_HSTS_SECONDS = 0
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = False
+    SECURE_HSTS_PRELOAD = False
+    SECURE_CONTENT_TYPE_NOSNIFF = True
+    SECURE_BROWSER_XSS_FILTER = True
+    X_FRAME_OPTIONS = 'DENY'
+else:
+    SESSION_COOKIE_SECURE = False
+    CSRF_COOKIE_SECURE = False
