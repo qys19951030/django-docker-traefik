@@ -2,7 +2,10 @@ import os
 import unittest
 from unittest import mock
 
-_VALID_SECRET_KEY = 'aB3dE7fG9hJ2kL5mN8pQ1rS4tU6vW0xY2zA5bC8dE1fG4hI7jK0lM3nO6pQr'
+_VALID_SECRET_KEY = 'kZ9xR2tM7wQ0pN4sV6yB1dF3hJ5lG8cA9eI2oK4rT6uX0wP8bD1fH3jL5nC7vE9iM2oQ6sU8wY4zA1bN5dF7hJ9lG3cK8eI0'
+_REPO_EXAMPLE_SECRET_KEY_1 = 'aB3dE7fG9hJ2kL5mN8pQ1rS4tU6vW0xY2zA5bC8dE1fG4hI7jK0lM3nO6pQr'
+_REPO_EXAMPLE_SECRET_KEY_2 = 'REPLACE-ME-WITH-YOUR-OWN-SECRET-KEY-GENERATED-WITH-SECRETS-TOKEN_URLSAFE-64-OR-EQUIVALENT'
+_REPO_DEV_DEFAULT = "django-insecure-*y(bpj*0ho*d6w9_cz0fvf428$&&jyzw==ztb$0(fkbvq)o-r5"
 
 
 class TestParseBool(unittest.TestCase):
@@ -254,15 +257,60 @@ class TestSecretKeyValidation(unittest.TestCase):
     def test_valid_key_accepted_in_prod(self):
         with mock.patch.dict(os.environ, {
             'DEBUG': '0',
-            'SECRET_KEY': 'aB3dE7fG9hJ2kL5mN8pQ1rS4tU6vW0xY2zA5bC8dE1fG4hI7jK0lM3nO6pQr',
+            'SECRET_KEY': _VALID_SECRET_KEY,
         }):
             import importlib
             import config.settings
             importlib.reload(config.settings)
             self.assertEqual(
                 config.settings.SECRET_KEY,
-                'aB3dE7fG9hJ2kL5mN8pQ1rS4tU6vW0xY2zA5bC8dE1fG4hI7jK0lM3nO6pQr'
+                _VALID_SECRET_KEY
             )
+
+    def test_repo_example_key_1_rejected_in_prod(self):
+        with mock.patch.dict(os.environ, {
+            'DEBUG': '0',
+            'SECRET_KEY': _REPO_EXAMPLE_SECRET_KEY_1,
+        }):
+            import importlib
+            import config.settings
+            from django.core.exceptions import ImproperlyConfigured
+            with self.assertRaises(ImproperlyConfigured) as ctx:
+                importlib.reload(config.settings)
+            self.assertIn('SECRET_KEY is not safe', str(ctx.exception))
+
+    def test_repo_example_key_2_rejected_in_prod(self):
+        with mock.patch.dict(os.environ, {
+            'DEBUG': '0',
+            'SECRET_KEY': _REPO_EXAMPLE_SECRET_KEY_2,
+        }):
+            import importlib
+            import config.settings
+            from django.core.exceptions import ImproperlyConfigured
+            with self.assertRaises(ImproperlyConfigured):
+                importlib.reload(config.settings)
+
+    def test_repo_dev_default_rejected_in_prod(self):
+        with mock.patch.dict(os.environ, {
+            'DEBUG': '0',
+            'SECRET_KEY': _REPO_DEV_DEFAULT,
+        }):
+            import importlib
+            import config.settings
+            from django.core.exceptions import ImproperlyConfigured
+            with self.assertRaises(ImproperlyConfigured):
+                importlib.reload(config.settings)
+
+    def test_test_key_prefix_rejected_in_prod(self):
+        with mock.patch.dict(os.environ, {
+            'DEBUG': '0',
+            'SECRET_KEY': 'test-key-for-check-deploy-not-a-placeholder',
+        }):
+            import importlib
+            import config.settings
+            from django.core.exceptions import ImproperlyConfigured
+            with self.assertRaises(ImproperlyConfigured):
+                importlib.reload(config.settings)
 
     def test_insecure_key_allowed_in_dev(self):
         with mock.patch.dict(os.environ, {

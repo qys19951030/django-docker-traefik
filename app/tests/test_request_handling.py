@@ -3,7 +3,7 @@ from unittest import mock
 
 os.environ['DJANGO_SETTINGS_MODULE'] = 'config.settings'
 os.environ['DEBUG'] = '0'
-os.environ['SECRET_KEY'] = 'aB3dE7fG9hJ2kL5mN8pQ1rS4tU6vW0xY2zA5bC8dE1fG4hI7jK0lM3nO6pQr'
+os.environ['SECRET_KEY'] = 'kZ9xR2tM7wQ0pN4sV6yB1dF3hJ5lG8cA9eI2oK4rT6uX0wP8bD1fH3jL5nC7vE9iM2oQ6sU8wY4zA1bN5dF7hJ9lG3cK8eI0'
 os.environ.setdefault('DATABASE_URL', 'sqlite://:memory:')
 os.environ['DJANGO_ALLOWED_HOSTS'] = '*'
 os.environ.setdefault('DJANGO_CSRF_TRUSTED_ORIGINS', '')

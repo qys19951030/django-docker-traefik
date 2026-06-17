@@ -70,7 +70,15 @@ _INSECURE_SECRET_KEY_PREFIXES = (
     'replace-me',
     'example-secret-key',
     'insecure',
+    'test-key-for-check-deploy',
 )
+
+_INSECURE_SECRET_KEY_EXACT_MATCHES = frozenset([
+    'aB3dE7fG9hJ2kL5mN8pQ1rS4tU6vW0xY2zA5bC8dE1fG4hI7jK0lM3nO6pQr',
+    'django-insecure-*y(bpj*0ho*d6w9_cz0fvf428$&&jyzw==ztb$0(fkbvq)o-r5',
+    'test-key-for-check-deploy-not-a-placeholder',
+    'REPLACE-ME-WITH-YOUR-OWN-SECRET-KEY-GENERATED-WITH-SECRETS-TOKEN_URLSAFE-64-OR-EQUIVALENT',
+])
 
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -91,6 +99,8 @@ if not DEBUG:
         is_insecure = True
     if key_lower.startswith('django-insecure-'):
         is_insecure = True
+    if SECRET_KEY in _INSECURE_SECRET_KEY_EXACT_MATCHES:
+        is_insecure = True
     for placeholder in _INSECURE_SECRET_KEY_PREFIXES:
         if placeholder in key_lower:
             is_insecure = True
@@ -102,8 +112,9 @@ if not DEBUG:
         raise ImproperlyConfigured(
             "SECRET_KEY is not safe for production. "
             "It must be at least 50 characters long, contain at least 5 unique characters, "
-            "and must not start with 'django-insecure-' or use a known placeholder "
-            "(e.g. 'change-me-to-a-long-random-string'). "
+            "must not start with 'django-insecure-', must not use a known placeholder "
+            "(e.g. 'change-me-to-a-long-random-string'), and must not be any of the "
+            "demonstration/example values shipped with this repository. "
             "Generate one with: python -c \"import secrets; print(secrets.token_urlsafe(64))\""
         )
 

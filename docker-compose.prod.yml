@@ -10,7 +10,7 @@ services:
       - 8000
     environment:
       - DEBUG=0
-      - SECRET_KEY=aB3dE7fG9hJ2kL5mN8pQ1rS4tU6vW0xY2zA5bC8dE1fG4hI7jK0lM3nO6pQr
+      - SECRET_KEY=${SECRET_KEY:?You must provide your own SECRET_KEY via the shell environment (e.g. `SECRET_KEY=... docker compose -f docker-compose.prod.yml up`) or a .env file. Never use the example values found in the repository. Generate one with: python -c "import secrets; print(secrets.token_urlsafe(64))"}
       - DATABASE_URL=postgresql://django_traefik:django_traefik@db:5432/django_traefik
       - DJANGO_ALLOWED_HOSTS=django-traefik.your-domain.com,.your-domain.com
       - DJANGO_CSRF_TRUSTED_ORIGINS=https://django-traefik.your-domain.com,https://*.your-domain.com
